@@ -12,48 +12,75 @@ print __file__,"import local modules\n"
 import facility
 print __file__,"import local modules successfully\n"
 
-msg = """
-    This is the first release of a very ugly automation script, it is under
-/home/gzhao/git/bcm_auto, if the result is failed, you can check make.log
-in that directory.
-It will need a lot more improvement...
-and let's see what we can get as time past!
+def MainRun(Destdir="/home/gzhao/git/bcm_auto", Maillist="gzhao", Logdir=""):
 
-Thanks
-Gary
-"""
+    if os.path.isdir(Logdir):
+        logpath = Logdir + time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime()) + '/'
+    else:
+        print "Log dir is invalid"
+        return
 
+    os.mkdir(logpath)
+    print logpath
 
-def MainRun(Destdir="/home/gzhao/git/bcm_auto", maillist="gzhao"):
     os.chdir(Destdir)
-    os.system('make deep_clean 2>&1')
+    os.system('make deep_clean')
 
     if os.path.isfile("bcm963xx/targets/CLX900/bcmCLX900_nand_fs_image_128.w"):
-        print "image exist"
+        print "image exist, deep clean failed? Never mind,  deleted it first"
+        os.remove("bcm963xx/targets/CLX900/bcmCLX900_nand_fs_image_128.w")
     else:
         res = "image deleted"
 
+    msg = "Build commit:\n\n"
+    commitOld = os.popen('git log -1').read()
     os.system('git pull origin zulu')
-    os.system('make >& make.log')
+    commitNew = os.popen('git log -1').read()
+    msg += commitNew
 
-    if os.path.isfile("bcm963xx/targets/CLX900/bcmCLX900_nand_fs_image_128.w"):
-        res = "build successfully"
+    if commitOld == commitNew:
+        print "There has no update"
+        res = "No need for 900 local build now"
+        msg += "\nThere has no update from server side, do not build this time\n"
     else:
-        res = "build failed"
 
-    facility.Mail2(res, msg)
+        msg += "\n=======================================================================\n"
+        msg += "\nLog dir is " + logpath + "\n"
+        msg += "\n=======================================================================\n"
+
+        os.system('make >& ' + logpath + 'make.log')
+        print msg
+
+        if os.path.isfile("bcm963xx/targets/CLX900/bcmCLX900_nand_fs_image_128.w"):
+            res = "900 local build successfully"
+        else:
+            res = "900 local build failed"
+            msg += "\nLast make log:\n"
+            msg += os.popen('tail -n 50 ' + logpath + 'make.log').read()
+
+        msg += "\n\nThis is an auto send E-mail, please do not reply."
+        print res
+        print msg
+
+    facility.Mail2(res, msg, From = "Builder@nanlnx-dragon")
 
 
 if __name__ == '__main__':
     parser = OptionParser(usage="usage: %prog [options]", version="%prog 0.1")
+
     parser.add_option("-m", "--mail", dest="MailList", default="",
             help="when script failed, send a mail to inform others")
+
     parser.add_option("-d", "--destdir", dest="DestDir",
             default="/home/gzhao/git/bcm_auto",
             help="To locate the directory where the git repos is")
+
+    parser.add_option("-l", "--logdir", dest="LogDir", default="",
+            help="Use to set the log file directory")
 
     (options, args) = parser.parse_args()
     os.environ["MAILLIST"] = options.MailList
 
     MainRun(Destdir = options.DestDir,
-           maillist = options.MailList)
+           Maillist = options.MailList,
+           Logdir = options.LogDir)
