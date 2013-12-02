@@ -20,11 +20,9 @@ def MainRun(Destdir="/home/gzhao/git/bcm_auto", Maillist="gzhao", Logdir=""):
         print "Log dir is invalid"
         return
 
-    os.mkdir(logpath)
-    print logpath
 
     os.chdir(Destdir)
-    os.system('make deep_clean')
+    #os.system('make deep_clean')
 
     if os.path.isfile("bcm963xx/targets/CLX900/bcmCLX900_nand_fs_image_128.w"):
         print "image exist, deep clean failed? Never mind,  deleted it first"
@@ -34,15 +32,20 @@ def MainRun(Destdir="/home/gzhao/git/bcm_auto", Maillist="gzhao", Logdir=""):
 
     msg = "Build commit:\n\n"
     commitOld = os.popen('git log -1').read()
-    os.system('git pull origin zulu')
+    updateMsg = os.popen('git pull origin zulu').read()
     commitNew = os.popen('git log -1').read()
     msg += commitNew
+    msg += "\n=======================================================================\n"
+    msg += "Update information:\n\n"
+    msg += updateMsg
 
     if commitOld == commitNew:
         print "There has no update"
         res = "No need for 900 local build now"
         msg += "\nThere has no update from server side, do not build this time\n"
     else:
+        os.mkdir(logpath)
+        print logpath
 
         msg += "\n=======================================================================\n"
         msg += "\nLog dir is " + logpath + "\n"
